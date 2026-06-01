@@ -8,9 +8,12 @@ import requests
 from bs4 import BeautifulSoup
 import os
 import re
+import logging
 from sqlalchemy import inspect, text
+from sqlalchemy.exc import SQLAlchemyError
 from typing import Optional
-from risk import assess_weather_risk
+
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key'
@@ -40,16 +43,6 @@ class Weather(db.Model):
     wind_speed = db.Column(db.Float)
     humidity = db.Column(db.Float)
     wind_direction = db.Column(db.String(20))
-    
-    def get_risk_assessment(self):
-        """Calculate and return risk assessment for this weather entry."""
-        return assess_weather_risk(
-            temperature=self.temperature,
-            description=self.description,
-            pressure=self.pressure,
-            wind_speed=self.wind_speed,
-            humidity=self.humidity
-        )
 
 class WeatherForm(FlaskForm):
     temperature_feels = SelectField(
@@ -186,12 +179,21 @@ def get_weather() -> tuple[Optional[float], Optional[str], Optional[float], Opti
         try:
             response = requests.get(url, timeout=20, headers=REQUEST_HEADERS)
             response.raise_for_status()
-            parsed = parser(BeautifulSoup(response.content, 'html.parser'))
-            if parsed[0] is not None:
-                return parsed
-        except requests.RequestException:
+        except requests.RequestException as exc:
+            logger.warning("Weather request to %s failed: %s", url, exc)
             continue
 
+        try:
+            parsed = parser(BeautifulSoup(response.content, 'html.parser'))
+        except Exception as exc:
+            logger.warning("Failed to parse weather data from %s: %s", url, exc)
+            continue
+
+        if parsed[0] is not None:
+            return parsed
+        logger.info("No usable weather data found at %s", url)
+
+    logger.error("All weather sources failed to return usable data")
     return None, None, None, None, None, None
 
 def ensure_schema():
@@ -245,8 +247,13 @@ def fetch():
             humidity=humidity,
             wind_direction=wind_direction,
         )
-        db.session.add(weather)
-        db.session.commit()
+        try:
+            db.session.add(weather)
+            db.session.commit()
+        except SQLAlchemyError as exc:
+            db.session.rollback()
+            logger.error("Failed to save fetched weather entry: %s", exc)
+            return "Failed to save weather", 500
         return redirect(url_for('index'))
     return "Failed to fetch weather", 500
 
@@ -271,8 +278,13 @@ def add():
             humidity=humidity,
             wind_direction=wind_direction,
         )
-        db.session.add(weather)
-        db.session.commit()
+        try:
+            db.session.add(weather)
+            db.session.commit()
+        except SQLAlchemyError as exc:
+            db.session.rollback()
+            logger.error("Failed to save weather entry: %s", exc)
+            return "Failed to save weather", 500
         return redirect(url_for('index'))
     return render_template('add.html', form=form)
 
