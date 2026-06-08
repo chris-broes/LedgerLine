@@ -54,6 +54,22 @@ class Weather(db.Model):
     wind_direction = db.Column(db.String(20))
 
 class WeatherForm(FlaskForm):
+    temperature = SelectField(
+        'Temperature (°F)',
+        choices=[
+            ('-10', '-10°F'),
+            ('-5', '-5°F'),
+            ('0', '0°F'),
+            ('5', '5°F'),
+            ('15', '15°F'),
+            ('32', '32°F'),
+            ('50', '50°F'),
+            ('64', '64°F'),
+            ('75', '75°F'),
+            ('90', '90°F'),
+        ],
+        validators=[DataRequired()],
+    )
     temperature_feels = SelectField(
         'Temperature Feels',
         choices=[
@@ -250,22 +266,22 @@ def fetch():
 def add():
     form = WeatherForm()
     if form.validate_on_submit():
-        temp, desc, pressure, wind_speed, humidity, wind_direction = get_weather()
+        temp = _parse_float(form.temperature.data)
         if temp is None:
-            return "Failed to fetch weather", 500
+            return "Invalid temperature", 400
 
         now = datetime.now()
         weather = Weather(
             date=now.date(),
             time=now.time(),
             temperature=temp,
-            description=desc,
+            description=None,
             temperature_feels=form.temperature_feels.data,
             vibe=form.vibe.data,
-            pressure=pressure,
-            wind_speed=wind_speed,
-            humidity=humidity,
-            wind_direction=wind_direction,
+            pressure=None,
+            wind_speed=None,
+            humidity=None,
+            wind_direction=None,
         )
         try:
             db.session.add(weather)

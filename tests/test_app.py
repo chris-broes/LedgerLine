@@ -43,9 +43,9 @@ def _mock_weather_response(monkeypatch):
     monkeypatch.setattr('app.requests.get', lambda *args, **kwargs: mock_response)
 
 
-def test_add_weather(client, monkeypatch):
-    _mock_weather_response(monkeypatch)
+def test_add_weather(client):
     response = client.post('/add', data={
+        'temperature': '64',
         'temperature_feels': 'Cool',
         'vibe': 'Jacket',
     }, follow_redirects=True)
@@ -53,7 +53,6 @@ def test_add_weather(client, monkeypatch):
     assert b'64.0' in response.data
     assert b'Cool' in response.data
     assert b'Jacket' in response.data
-    assert b'SW' in response.data
 
 
 def test_fetch_weather(client, monkeypatch):

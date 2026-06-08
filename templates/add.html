@@ -9,6 +9,10 @@
     <form method="POST">
         {{ form.hidden_tag() }}
         <p>
+            {{ form.temperature.label }}<br>
+            {{ form.temperature() }}
+        </p>
+        <p>
             {{ form.temperature_feels.label }}<br>
             {{ form.temperature_feels() }}
         </p>
