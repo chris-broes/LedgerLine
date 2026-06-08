@@ -1,0 +1,102 @@
+name: Droid · Fix from Issue
+
+# Phase 2 engine: an opened issue -> Droid (headless on toaster1) investigates,
+# fixes, adds a regression test, and opens a linked PR for human review.
+
+on:
+  issues:
+    types: [opened]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Issue number to fix (manual re-run for iteration)"
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: droid-fix-issue-${{ github.event.issue.number || inputs.issue_number }}
+  cancel-in-progress: false
+
+jobs:
+  fix:
+    # Security gate (public repo): only the owner's issues run code on our box.
+    # workflow_dispatch is already limited to users with write access.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.issue.author_association == 'OWNER' }}
+    runs-on: [self-hosted, toaster1]
+    env:
+      ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
+      # Prefer a PAT so the opened PR triggers downstream CI + review workflows.
+      # Falls back to GITHUB_TOKEN (PR opens, but downstream workflows won't auto-fire).
+      GH_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+
+      - name: Ensure Droid CLI on PATH
+        run: |
+          command -v droid >/dev/null 2>&1 || curl -fsSL https://app.factory.ai/cli | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Acknowledge on the issue
+        run: gh issue comment "$ISSUE_NUMBER" --body "🤖 Droid (headless on **toaster1**) picked this up — investigating and will open a PR."
+
+      - name: Create fix branch
+        run: |
+          git config user.name "factory-droid[bot]"
+          git config user.email "138933559+factory-droid[bot]@users.noreply.github.com"
+          git switch -c "droid/issue-${ISSUE_NUMBER}"
+
+      - name: Build prompt from the issue
+        run: |
+          gh issue view "$ISSUE_NUMBER" --json title,body \
+            -q '"Issue #'"$ISSUE_NUMBER"': " + .title + "\n\n" + (.body // "")' > "$RUNNER_TEMP/issue.txt"
+          {
+            echo "Resolve the GitHub issue described below."
+            echo ""
+            echo "Investigate the codebase, find the ROOT CAUSE, and fix it. Add a regression"
+            echo "test that fails before your fix and passes after. Follow AGENTS.md (conventions,"
+            echo "SSRF hygiene, no debug mode, and the Definition of Done). Run the test suite to"
+            echo "confirm it is green. Keep it a single, minimal, reviewable change. Do NOT commit,"
+            echo "push, or open a pull request — only edit files."
+            echo ""
+            echo "----- ISSUE -----"
+            cat "$RUNNER_TEMP/issue.txt"
+          } > "$RUNNER_TEMP/prompt.txt"
+          echo "----- prompt -----"; cat "$RUNNER_TEMP/prompt.txt"
+
+      - name: Droid fixes the issue (headless)
+        env:
+          FACTORY_API_KEY: ${{ secrets.FACTORY_API_KEY }}
+        run: |
+          python3 -m venv "$HOME/.venv-pw" || true
+          source "$HOME/.venv-pw/bin/activate"
+          pip install -q --upgrade pip
+          pip install -q -r requirements.txt -r requirements-dev.txt
+          export SECRET_KEY=demo
+          droid exec --auto high -m claude-opus-4-8 -f "$RUNNER_TEMP/prompt.txt"
+
+      - name: Commit, push, open PR
+        run: |
+          if git diff --quiet && git diff --cached --quiet; then
+            gh issue comment "$ISSUE_NUMBER" --body "⚠️ Droid produced no changes — needs a human."
+            exit 1
+          fi
+          git add -A
+          git commit -m "fix: resolve #${ISSUE_NUMBER}
+
+          Co-authored-by: factory-droid[bot] <138933559+factory-droid[bot]@users.noreply.github.com>"
+          git push -u origin "droid/issue-${ISSUE_NUMBER}"
+          TITLE="$(gh issue view "$ISSUE_NUMBER" --json title -q .title)"
+          PR_URL="$(gh pr create --base main --head "droid/issue-${ISSUE_NUMBER}" \
+            --title "Fix: ${TITLE}" \
+            --body "Fixes #${ISSUE_NUMBER}
+
+          Automated fix by Droid running headless on **toaster1**, following \`AGENTS.md\`. Please review.")"
+          gh issue comment "$ISSUE_NUMBER" --body "✅ Opened $PR_URL"
+          echo "PR: $PR_URL"
