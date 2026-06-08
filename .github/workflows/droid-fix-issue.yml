@@ -82,7 +82,9 @@ jobs:
           python3 -m venv "$HOME/.venv-pw" || true
           source "$HOME/.venv-pw/bin/activate"
           pip install -q --upgrade pip
-          pip install -q -r requirements.txt -r requirements-dev.txt
+          pip install -q -r requirements.txt
+          [ -f requirements-dev.txt ] && pip install -q -r requirements-dev.txt || true
+          pip install -q flake8
           export SECRET_KEY=demo
           droid exec --auto high -m claude-opus-4-8 -f "$RUNNER_TEMP/prompt.txt"
 
