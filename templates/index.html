@@ -6,11 +6,27 @@
     <style>
         body {
             font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
-            max-width: 720px;
+            max-width: 1080px;
             margin: 2rem auto;
             padding: 0 1rem;
             color: #1a2233;
             background: #f6f8fb;
+        }
+        .layout {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 1.6rem;
+            align-items: start;
+        }
+        .layout aside { order: 1; }
+        .layout main { order: 2; }
+        .layout h2:first-of-type { margin-top: 0; }
+        @media (max-width: 880px) {
+            .layout { grid-template-columns: 1fr; }
+            .layout aside { order: 2; }
+            .layout main { order: 1; }
+            .layout h2:first-of-type { margin-top: 1.6rem; }
+            .layout main h2:first-of-type { margin-top: 0; }
         }
         header {
             display: flex;
@@ -84,7 +100,7 @@
             margin-left: 0.5rem;
         }
         .cat-row { display: flex; align-items: center; margin-bottom: 0.55rem; }
-        .cat-name { width: 130px; font-size: 0.9rem; font-weight: 600; }
+        .cat-name { width: 100px; font-size: 0.85rem; font-weight: 600; }
         .cat-bar-track { flex: 1; background: #eef2ff; border-radius: 999px; height: 14px; }
         .cat-bar {
             background: linear-gradient(90deg, #2563eb, #1e3a8a);
@@ -119,6 +135,40 @@
         <a class="btn" href="{{ url_for('add') }}">+ New Transaction</a>
     </header>
 
+    <div class="layout">
+    <aside>
+    <h2>Recommended for You</h2>
+    {% if recommendations is none %}
+        <div class="card unavailable">Recommendations are temporarily unavailable.</div>
+    {% elif recommendations %}
+        {% for rec in recommendations %}
+        <div class="rec">
+            <span class="rec-name">{{ rec.name }}</span>
+            <span class="rec-tagline">{{ rec.tagline }}</span>
+            <div class="rec-reason">{{ rec.reason }}</div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="card empty">No recommendations yet — keep using LedgerLine.</div>
+    {% endif %}
+
+    <h2>Spending by Category</h2>
+    <div class="card">
+        {% for name, total in categories %}
+        <div class="cat-row">
+            <div class="cat-name">{{ name }}</div>
+            <div class="cat-bar-track">
+                <div class="cat-bar" style="width: {{ '%.0f'|format(total / spend_total * 100 if spend_total else 0) }}%"></div>
+            </div>
+            <div class="cat-amount">${{ '%.2f'|format(total) }}</div>
+        </div>
+        {% else %}
+        <div class="empty">No spending yet. Post a few transactions to see your breakdown.</div>
+        {% endfor %}
+    </div>
+    </aside>
+
+    <main>
     <div class="balance-card">
         <div class="balance-label">Current Balance</div>
         <div class="balance-amount">${{ balance }}</div>
@@ -163,35 +213,7 @@
         <li class="empty">No activity yet. Post your first transaction.</li>
     {% endfor %}
     </ul>
-
-    <h2>Spending by Category</h2>
-    <div class="card">
-        {% for name, total in categories %}
-        <div class="cat-row">
-            <div class="cat-name">{{ name }}</div>
-            <div class="cat-bar-track">
-                <div class="cat-bar" style="width: {{ '%.0f'|format(total / spend_total * 100 if spend_total else 0) }}%"></div>
-            </div>
-            <div class="cat-amount">${{ '%.2f'|format(total) }}</div>
-        </div>
-        {% else %}
-        <div class="empty">No spending yet. Post a few transactions to see your breakdown.</div>
-        {% endfor %}
+    </main>
     </div>
-
-    <h2>Recommended for You</h2>
-    {% if recommendations is none %}
-        <div class="card unavailable">Recommendations are temporarily unavailable.</div>
-    {% elif recommendations %}
-        {% for rec in recommendations %}
-        <div class="rec">
-            <span class="rec-name">{{ rec.name }}</span>
-            <span class="rec-tagline">{{ rec.tagline }}</span>
-            <div class="rec-reason">{{ rec.reason }}</div>
-        </div>
-        {% endfor %}
-    {% else %}
-        <div class="card empty">No recommendations yet — keep using LedgerLine.</div>
-    {% endif %}
 </body>
 </html>
