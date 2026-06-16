@@ -3,8 +3,8 @@
 # First match wins, so rule order is significant.
 RULES: list[tuple[tuple[str, ...], str]] = [
     (('uber', 'lyft', 'transit', 'metro', 'parking', 'shell', 'chevron'), 'Transport'),
-    (('coffee', 'cafe', 'restaurant', 'grill', 'pizza', 'doordash', 'grubhub', 'eats', 'bakery', 'bar '), 'Dining'),
-    (('grocery', 'market', 'safeway', 'trader', 'whole foods', 'costco'), 'Groceries'),
+    (('coffee', 'cafe', 'restaurant', 'grill', 'pizza', 'doordash', 'grubhub', 'eats', 'bakery', 'bar '), 'Food'),
+    (('grocery', 'market', 'safeway', 'trader', 'whole foods', 'costco'), 'Food'),
     (('netflix', 'spotify', 'hulu', 'subscription', 'membership', 'prime', 'icloud'), 'Subscriptions'),
     (('amazon', 'target', 'store', 'shop', 'mall'), 'Shopping'),
     (('refund', 'reversal', 'chargeback'), 'Refund'),

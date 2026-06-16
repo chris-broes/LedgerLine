@@ -2,7 +2,7 @@ from categorize import categorize
 
 
 def test_dining():
-    assert categorize('Blue Bottle Coffee') == 'Dining'
+    assert categorize('Blue Bottle Coffee') == 'Food'
 
 
 def test_subscriptions():
@@ -14,7 +14,7 @@ def test_transport():
 
 
 def test_groceries():
-    assert categorize('Whole Foods Market') == 'Groceries'
+    assert categorize('Whole Foods Market') == 'Food'
 
 
 def test_income():

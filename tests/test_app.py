@@ -70,13 +70,13 @@ def test_index_insights_render_with_service_down(client, monkeypatch):
     ))
     db.session.add(Transaction(
         date=date(2026, 6, 2), time=time(8, 30),
-        description='Coffee Shop', amount=-4.50, category='Dining',
+        description='Coffee Shop', amount=-4.50, category='Food',
     ))
     db.session.commit()
     response = client.get('/')
     assert response.status_code == 200
     assert b'Spending by Category' in response.data
-    assert b'Dining' in response.data
+    assert b'Food' in response.data
     assert b'Balance Over Time' in response.data
     assert b'polyline' in response.data
     assert b'temporarily unavailable' in response.data

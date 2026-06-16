@@ -346,20 +346,18 @@
             {% endif %}
         </div>
         {% if chart %}
-        <svg viewBox="0 0 640 65" style="width:100%;height:65px;" role="img" aria-label="Balance over time">
+        <svg viewBox="0 0 {{ chart.width }} {{ chart.height }}"
+             style="width:100%;height:{{ chart.height }}px;" role="img" aria-label="Balance over time">
             <defs>
                 <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="#5c6bc0" stop-opacity="0.18"/>
+                    <stop offset="0%" stop-color="#5c6bc0" stop-opacity="0.2"/>
                     <stop offset="100%" stop-color="#5c6bc0" stop-opacity="0.02"/>
                 </linearGradient>
             </defs>
-            {% if chart.low < 0 %}
-            <line x1="0" y1="{{ chart.zero_y }}" x2="640" y2="{{ chart.zero_y }}"
-                  stroke="#e5e7eb" stroke-width="1" stroke-dasharray="4 3"/>
-            {% endif %}
-            <polyline points="{{ chart.points }},626,65 0,65" fill="url(#chartFill)" stroke="none"/>
+            <polyline points="{{ chart.points }},{{ chart.width - 8 }},{{ chart.height }} 8,{{ chart.height }}"
+                      fill="url(#chartFill)" stroke="none"/>
             <polyline points="{{ chart.points }}" fill="none" stroke="#5c6bc0"
-                      stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+                      stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
         </svg>
         {% else %}
         <div class="empty-state">Not enough data to chart your balance yet.</div>
@@ -374,64 +372,74 @@
              style="width:100%;height:auto;display:block;overflow:visible;"
              role="img" aria-label="Cash flow sankey">
 
-            <!-- ── flows col0 → col1 (income sources into income node) ── -->
+            <!-- flows: col0 → col1 -->
             {% for f in sankey.flows_01 %}
-            <path d="{{ f.path }}" fill="{{ f.color }}" opacity="0.28"/>
+            <path d="{{ f.path }}" fill="{{ f.color }}" opacity="0.26"/>
             {% endfor %}
-
-            <!-- ── flows col1 → col2 (income into savings + categories) ── -->
+            <!-- flows: col1 → col2 -->
             {% for f in sankey.flows_12 %}
-            <path d="{{ f.path }}" fill="{{ f.color }}" opacity="0.32"/>
+            <path d="{{ f.path }}" fill="{{ f.color }}" opacity="0.30"/>
+            {% endfor %}
+            <!-- flows: col2 → col3 -->
+            {% for f in sankey.flows_23 %}
+            <path d="{{ f.path }}" fill="{{ f.color }}" opacity="0.34"/>
             {% endfor %}
 
-            <!-- ── col0: income source nodes ── -->
+            <!-- col0: income source nodes + left labels -->
             {% for s in sankey.col0 %}
             <rect x="{{ sankey.col0_x }}" y="{{ s.y|round(1) }}"
-                  width="{{ sankey.nw }}" height="{{ [s.h, 2]|max|round(1) }}"
+                  width="{{ sankey.nw }}" height="{{ [s.h, 3]|max|round(1) }}"
                   fill="{{ s.color }}" rx="3"/>
-            <!-- left label -->
-            <text x="{{ sankey.col0_x - 6 }}" y="{{ s.mid|round(1) }}"
+            <text x="{{ sankey.col0_x - 8 }}" y="{{ (s.mid - 6)|round(1) }}"
                   text-anchor="end" dominant-baseline="middle"
-                  font-size="11.5" fill="#4b5563" font-family="system-ui,sans-serif" font-weight="500">
-                {{ s.name }}
-            </text>
-            <text x="{{ sankey.col0_x - 6 }}" y="{{ (s.mid + 13)|round(1) }}"
+                  font-size="11.5" font-weight="600" fill="#374151"
+                  font-family="system-ui,sans-serif">{{ s.name }}</text>
+            <text x="{{ sankey.col0_x - 8 }}" y="{{ (s.mid + 8)|round(1) }}"
                   text-anchor="end" dominant-baseline="middle"
                   font-size="10" fill="#9ea3b7" font-family="system-ui,sans-serif">
-                ${{ '{:,.0f}'.format(s.amount) }}
-            </text>
+                ${{ '{:,.0f}'.format(s.amount) }}</text>
             {% endfor %}
 
-            <!-- ── col1: income aggregate node ── -->
+            <!-- col1: income aggregate node -->
             <rect x="{{ sankey.col1_x }}" y="{{ sankey.col1.y|round(1) }}"
                   width="{{ sankey.nw }}" height="{{ sankey.col1.h|round(1) }}"
                   fill="#22c55e" rx="3"/>
-            <text x="{{ sankey.col1_x + sankey.nw / 2 }}" y="{{ (sankey.col1.mid - 8)|round(1) }}"
-                  text-anchor="middle" dominant-baseline="middle"
-                  font-size="11" fill="#6b7280" font-family="system-ui,sans-serif">Income</text>
-            <text x="{{ sankey.col1_x + sankey.nw / 2 }}" y="{{ (sankey.col1.mid + 6)|round(1) }}"
-                  text-anchor="middle" dominant-baseline="middle"
-                  font-size="10" fill="#9ea3b7" font-family="system-ui,sans-serif">
-                ${{ '{:,.0f}'.format(sankey.income_total) }}
-            </text>
+            <text x="{{ (sankey.col1_x + sankey.nw / 2)|round(1) }}" y="{{ (sankey.col1.mid - 8)|round(1) }}"
+                  text-anchor="middle" font-size="11" fill="#6b7280"
+                  font-family="system-ui,sans-serif">Income</text>
+            <text x="{{ (sankey.col1_x + sankey.nw / 2)|round(1) }}" y="{{ (sankey.col1.mid + 7)|round(1) }}"
+                  text-anchor="middle" font-size="10" fill="#9ea3b7"
+                  font-family="system-ui,sans-serif">${{ '{:,.0f}'.format(sankey.income_total) }}</text>
 
-            <!-- ── col2: savings + category nodes + labels ── -->
+            <!-- col2: category nodes -->
             {% for c in sankey.col2 %}
+            {% set lh = [c.h, 3]|max %}
             <rect x="{{ sankey.col2_x }}" y="{{ c.y_rect|round(1) }}"
-                  width="{{ sankey.nw }}" height="{{ [c.h, 2]|max|round(1) }}"
+                  width="{{ sankey.nw }}" height="{{ lh|round(1) }}"
                   fill="{{ c.color }}" rx="3"/>
-            <!-- right label: name (bold) -->
-            <text x="{{ sankey.col2_x + sankey.nw + 8 }}" y="{{ (c.y_rect + [c.h,1]|max / 2 - 6)|round(1) }}"
-                  dominant-baseline="middle"
-                  font-size="11.5" fill="#4b5563" font-family="system-ui,sans-serif" font-weight="600">
-                {{ c.name }}
-            </text>
-            <!-- right label: amount + % -->
-            <text x="{{ sankey.col2_x + sankey.nw + 8 }}" y="{{ (c.y_rect + [c.h,1]|max / 2 + 8)|round(1) }}"
-                  dominant-baseline="middle"
-                  font-size="10" fill="#9ea3b7" font-family="system-ui,sans-serif">
-                ${{ '{:,.0f}'.format(c.amount) }} &nbsp;·&nbsp; {{ c.pct }}%
-            </text>
+            <!-- label between col2 and col3 -->
+            <text x="{{ sankey.col2_x + sankey.nw + 8 }}" y="{{ (c.y_rect + lh / 2 - 6)|round(1) }}"
+                  dominant-baseline="middle" font-size="11.5" font-weight="600"
+                  fill="#374151" font-family="system-ui,sans-serif">{{ c.name }}</text>
+            <text x="{{ sankey.col2_x + sankey.nw + 8 }}" y="{{ (c.y_rect + lh / 2 + 8)|round(1) }}"
+                  dominant-baseline="middle" font-size="10" fill="#9ea3b7"
+                  font-family="system-ui,sans-serif">
+                ${{ '{:,.0f}'.format(c.amount) }} · {{ c.pct }}%</text>
+            {% endfor %}
+
+            <!-- col3: subcategory nodes + right labels -->
+            {% for s in sankey.col3 %}
+            {% set sh = [s.h, 3]|max %}
+            <rect x="{{ sankey.col3_x }}" y="{{ s.y_rect|round(1) }}"
+                  width="{{ sankey.nw }}" height="{{ sh|round(1) }}"
+                  fill="{{ s.color }}" rx="3"/>
+            <text x="{{ sankey.col3_x + sankey.nw + 8 }}" y="{{ (s.y_rect + sh / 2 - 5)|round(1) }}"
+                  dominant-baseline="middle" font-size="11" font-weight="600"
+                  fill="#374151" font-family="system-ui,sans-serif">{{ s.name }}</text>
+            <text x="{{ sankey.col3_x + sankey.nw + 8 }}" y="{{ (s.y_rect + sh / 2 + 7)|round(1) }}"
+                  dominant-baseline="middle" font-size="10" fill="#9ea3b7"
+                  font-family="system-ui,sans-serif">
+                ${{ '{:,.0f}'.format(s.amount) }} · {{ s.pct }}%</text>
             {% endfor %}
 
         </svg>

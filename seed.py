@@ -11,33 +11,58 @@ from app import app, db, Transaction
 # (description, days_ago, hour, amount, category, subcategory)
 # Negative = purchase; positive = income/credit.
 SEED_TRANSACTIONS = [
-    ('Monthly rent',                1,  1, -1850.00, 'Housing',       'Rent'),
-    ('Uber trip downtown',          1, 18,   -18.50, 'Transport',     'Rideshare'),
-    ('Blue Bottle Coffee',          2,  8,    -6.50, 'Dining',        'Coffee'),
-    ('Whole Foods Market',          3, 17,   -86.42, 'Groceries',     'Supermarket'),
-    ('Amazon order',                4, 12,   -67.84, 'Shopping',      'Online'),
-    ('Golden Gate Grill',           5, 19,   -48.75, 'Dining',        'Restaurant'),
-    ('Netflix monthly',             6,  9,   -15.99, 'Subscriptions', 'Streaming'),
-    ('Cashback reward',             7, 10,    12.30, 'Income',        'Rewards'),
-    ('Spotify Premium',             8,  9,   -11.99, 'Subscriptions', 'Music'),
-    ('Slice Pizza Co',              9, 20,   -21.40, 'Dining',        'Restaurant'),
-    ("Trader Joe's",               10, 16,   -54.17, 'Groceries',     'Supermarket'),
-    ('Target',                     11, 14,   -39.99, 'Shopping',      'Retail'),
-    ('ACME Corp payroll',          12,  6,  1450.00, 'Income',        'Payroll'),
-    ('DoorDash dinner',            12, 19,   -32.18, 'Dining',        'Delivery'),
-    ('Refund: returned headphones', 13, 11,   59.99, 'Refund',        'Return'),
-    ('BART transit pass',          14,  7,   -64.00, 'Transport',     'Transit'),
-    ('iCloud storage',             15,  9,    -2.99, 'Subscriptions', 'Software'),
-    ('PG&E electricity',           16,  9,   -72.00, 'Housing',       'Utilities'),
-    ('Freelance consulting',       17, 14,   650.00, 'Income',        'Freelance'),
-    ('Safeway',                    17, 18,   -33.08, 'Groceries',     'Supermarket'),
-    ('Dentist copay',              19, 10,   -25.00, 'Health',        'Dental'),
-    ('Shell gas station',          20, 15,   -41.25, 'Transport',     'Gas'),
-    ('T-Mobile phone',             21,  9,   -45.00, 'Subscriptions', 'Phone'),
-    ('Comcast internet',           22,  9,   -65.00, 'Housing',       'Internet'),
-    ('Prime membership',           23,  9,   -14.99, 'Subscriptions', 'Online'),
-    ('Interest payment',           25,  6,     4.21, 'Income',        'Interest'),
-    ('ACME Corp payroll',          26,  6,  1450.00, 'Income',        'Payroll'),
+    # ── Income ───────────────────────────────────────────────────────────
+    ('ACME Corp payroll',          1,   6,  2150.00, 'Income',        'Payroll'),
+    ('Cashback reward',            7,  10,    22.00, 'Income',        'Rewards'),
+    ('Freelance consulting',      10,  14,   550.00, 'Income',        'Freelance'),
+    ('Refund: returned jacket',   13,  11,    78.00, 'Refund',        'Return'),
+    ('Interest payment',          25,   6,    12.00, 'Income',        'Interest'),
+    ('ACME Corp payroll',         26,   6,  2150.00, 'Income',        'Payroll'),
+
+    # ── Housing ──────────────────────────────────────────────────────────
+    ('Mortgage payment',           1,   7, -1900.00, 'Housing',       'Mortgage'),
+    ('Home insurance',             5,   9,  -145.00, 'Housing',       'Insurance'),
+    ('PG&E electricity',          10,   9,   -95.00, 'Housing',       'Utilities'),
+    ('Water & sewage',            15,  10,   -50.00, 'Housing',       'Utilities'),
+    ('Comcast internet',          20,   9,   -80.00, 'Housing',       'Utilities'),
+
+    # ── Food / Groceries ─────────────────────────────────────────────────
+    ('Whole Foods Market',         3,  17,  -115.00, 'Food',          'Groceries'),
+    ("Trader Joe's",              11,  16,   -70.00, 'Food',          'Groceries'),
+    ('Safeway',                   18,  18,   -42.00, 'Food',          'Groceries'),
+
+    # ── Food / Dining ─────────────────────────────────────────────────────
+    ('Golden Gate Grill',          2,  19,   -65.00, 'Food',          'Dining'),
+    ('Slice Pizza Co',             8,  20,   -28.00, 'Food',          'Dining'),
+    ('DoorDash dinner',           14,  19,   -42.00, 'Food',          'Dining'),
+
+    # ── Food / Drinks ─────────────────────────────────────────────────────
+    ('Blue Bottle Coffee',         4,   8,    -8.50, 'Food',          'Drinks'),
+    ('Sightglass Coffee',          9,   8,    -7.50, 'Food',          'Drinks'),
+    ('Bar Agricole',              16,  21,   -58.00, 'Food',          'Drinks'),
+
+    # ── Transport ─────────────────────────────────────────────────────────
+    ('Auto loan payment',          1,   8,  -350.00, 'Transport',     'Auto Loan'),
+    ('Auto insurance',             5,   9,  -125.00, 'Transport',     'Insurance'),
+    ('Firestone — brake repair',  12,  10,  -185.00, 'Transport',     'Repairs'),
+    ('Shell gas station',         20,  15,   -52.00, 'Transport',     'Gas'),
+
+    # ── Shopping ─────────────────────────────────────────────────────────
+    ('Amazon order',               4,  12,   -88.00, 'Shopping',      'Online'),
+    ('Target',                    11,  14,   -52.00, 'Shopping',      'Retail'),
+    ('H&M clothing',              17,  13,   -62.00, 'Shopping',      'Clothing'),
+
+    # ── Subscriptions ─────────────────────────────────────────────────────
+    ('Netflix monthly',            6,   9,   -22.00, 'Subscriptions', 'Streaming'),
+    ('Spotify Premium',            8,   9,   -12.00, 'Subscriptions', 'Music'),
+    ('Adobe Creative Cloud',      15,   9,   -55.00, 'Subscriptions', 'Software'),
+    ('iCloud storage',            15,   9,    -4.00, 'Subscriptions', 'Software'),
+    ('T-Mobile phone',            21,   9,   -55.00, 'Subscriptions', 'Phone'),
+    ('Amazon Prime',              22,   9,   -17.00, 'Subscriptions', 'Online'),
+
+    # ── Health ────────────────────────────────────────────────────────────
+    ('Dentist copay',             19,  10,   -35.00, 'Health',        'Dental'),
+    ('Planet Fitness',            15,  17,   -25.00, 'Health',        'Fitness'),
 ]
 
 
