@@ -1,0 +1,70 @@
+project: LedgerLine
+imagemagick: true
+
+environments:
+  local:
+    ledger_url: "http://127.0.0.1:5000"
+    reminders_url: "http://127.0.0.1:8001"
+    recommendations_url: "http://127.0.0.1:8002"
+    restrictions: []
+  gke:
+    ledger_url: "https://ledger.example.com"          # replace after GKE deploy
+    reminders_url: "https://reminders.example.com"    # replace after GKE deploy
+    recommendations_url: "http://recommendations-svc.ledgerline.svc.cluster.local:8002"
+    restrictions: ["read_only_suggestions"]
+
+default_target: local
+
+auth:
+  method: none
+  notes: "App is unauthenticated — no login required. SECRET_KEY must be set to start the ledger service."
+
+personas:
+  - name: anonymous_user
+    description: "Any visitor — no auth, full access to all features"
+    test_focus:
+      - transaction posting and display
+      - auto-categorization accuracy
+      - balance calculation correctness
+      - recommendations relevance
+      - payment reminders CRUD
+      - graceful degradation when recommendations service is down
+
+apps:
+  ledger:
+    path_patterns:
+      - "app.py"
+      - "categorize.py"
+      - "config.py"
+      - "templates/**"
+      - "static/**"
+      - "migrations/**"
+    skill: qa-ledger
+    test_tool: curl
+    start_command: "SECRET_KEY=dev python app.py"
+    port: 5000
+
+  reminders:
+    path_patterns:
+      - "reminders/**"
+    skill: qa-reminders
+    test_tool: curl
+    start_command: "python reminders/app.py"
+    port: 8001
+
+  recommendations:
+    path_patterns:
+      - "recommendations/**"
+    skill: qa-recommendations
+    test_tool: curl
+    start_command: "python recommendations/app.py"
+    port: 8002
+
+cleanup:
+  auto_cleanup: true
+  strategy: api-call
+  instructions: >
+    DELETE transactions via sqlite3 or by reseeding with seed.py.
+    Reminders and recommendations are in-memory; restart the service to reset.
+
+failure_learning: open_pr

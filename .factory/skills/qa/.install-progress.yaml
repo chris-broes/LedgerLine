@@ -1,0 +1,8 @@
+project: LedgerLine
+default_target: local
+imagemagick: true
+test_method: api
+failure_learning: open_pr
+github_action: true
+github_action_required: false
+completed_categories: [1, 2, 3, 4, 5, 6, 7, 8]

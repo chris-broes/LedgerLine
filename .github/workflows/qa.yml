@@ -1,0 +1,143 @@
+name: QA
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: qa-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  qa:
+    runs-on: [self-hosted, toaster1]
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run DB migration (ledger)
+        run: |
+          FLASK_APP=app.py flask db upgrade
+        env:
+          SECRET_KEY: ${{ secrets.LEDGER_SECRET_KEY || 'qa-insecure-key' }}
+
+      - name: Install Droid CLI
+        run: |
+          command -v droid >/dev/null 2>&1 || curl -fsSL https://app.factory.ai/cli | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Run QA
+        id: qa
+        continue-on-error: true
+        timeout-minutes: 20
+        env:
+          FACTORY_API_KEY: ${{ secrets.FACTORY_API_KEY }}
+          SECRET_KEY: ${{ secrets.LEDGER_SECRET_KEY || 'qa-insecure-key' }}
+          CI: "true"
+        run: |
+          mkdir -p qa-results
+          droid exec --auto high -m claude-opus-4-8 \
+            "You are running in a non-interactive CI environment. No human is available.
+             Do NOT use AskUser. Do NOT pause for input.
+             Run the qa skill against the current git diff (compare to origin/main).
+             Write the final report to qa-results/report.md.
+             Prefix all test transactions with 'QA:' so cleanup can find them."
+
+      - name: Apply QA skill updates (open PR)
+        if: always() && steps.qa.outcome != 'cancelled'
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+        run: |
+          if [ ! -f qa-results/skill-updates.json ]; then
+            echo "No skill updates to apply."
+            exit 0
+          fi
+          if git diff --quiet .factory/skills/; then
+            echo "No skill file changes."
+            exit 0
+          fi
+          BRANCH="qa/skill-updates-${{ github.run_number }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add .factory/skills/
+          git commit -m "chore(qa): update failure catalog from QA run #${{ github.run_number }}"
+          git push origin "$BRANCH"
+          gh pr create \
+            --base "${{ github.event.pull_request.head.ref || github.ref_name }}" \
+            --head "$BRANCH" \
+            --title "chore(qa): update failure catalog from QA run #${{ github.run_number }}" \
+            --body "Auto-generated from QA run on PR #${{ github.event.pull_request.number }}." \
+            --draft
+
+      - name: Upload QA artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-results-${{ github.run_id }}
+          path: qa-results/
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Post QA report as PR comment
+        if: always() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          REPO="${{ github.repository }}"
+          API="https://api.github.com"
+
+          if [ -f qa-results/report.md ]; then
+            BODY="<!-- qa-report -->\n$(cat qa-results/report.md)"
+          else
+            BODY="<!-- qa-report -->\n## QA Report\n\n_QA did not produce a report. Check the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details._"
+          fi
+
+          BODY="$BODY\n\n---\n_[Download artifacts](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) · Run #${{ github.run_number }}_"
+
+          auth=(-H "Authorization: token ${GH_TOKEN}" -H "Accept: application/vnd.github+json")
+
+          # Update existing QA comment or create new one
+          EXISTING=$(curl -sS "${auth[@]}" \
+            "${API}/repos/${REPO}/issues/${PR_NUMBER}/comments" \
+            | python3 -c "
+          import sys, json
+          comments = json.load(sys.stdin)
+          for c in comments:
+              if c.get('body','').startswith('<!-- qa-report -->'):
+                  print(c['id'])
+                  break
+          " 2>/dev/null)
+
+          BODY_JSON=$(printf '%s' "$(printf '%b' "$BODY")" | python3 -c "import sys,json; print(json.dumps(sys.stdin.read()))")
+
+          if [ -n "$EXISTING" ]; then
+            curl -sS -X PATCH "${auth[@]}" \
+              "${API}/repos/${REPO}/issues/comments/${EXISTING}" \
+              -d "{\"body\": $BODY_JSON}" >/dev/null
+            echo "Updated QA comment $EXISTING on PR #${PR_NUMBER}"
+          else
+            curl -sS -X POST "${auth[@]}" \
+              "${API}/repos/${REPO}/issues/${PR_NUMBER}/comments" \
+              -d "{\"body\": $BODY_JSON}" >/dev/null
+            echo "Posted QA comment on PR #${PR_NUMBER}"
+          fi
