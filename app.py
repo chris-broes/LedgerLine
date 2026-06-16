@@ -327,27 +327,50 @@ def _balance_chart(transactions: list['Transaction']) -> Optional[dict]:
         running += txn.amount
         series.append((txn.date, running))
 
-    width, height, pad = 640, 120, 8
-    values = [value for _, value in series]
-    low = min(values)
-    high = max(values)
+    width, height = 640, 148
+    lpad, rpad, tpad, bpad = 58, 12, 10, 10
+    cw = width - lpad - rpad
+    ch = height - tpad - bpad
+
+    values = [v for _, v in series]
+    low, high = min(values), max(values)
     span = (high - low) or 1.0
     last_index = len(series) - 1
 
-    points = []
-    for i, (_, value) in enumerate(series):
-        x = pad + i * (width - 2 * pad) / last_index
-        y = height - pad - (value - low) * (height - 2 * pad) / span
-        points.append(f"{x:.1f},{y:.1f}")
+    def to_x(i: int) -> float:
+        return lpad + i * cw / last_index
 
-    zero_y = height - pad - (0.0 - low) * (height - 2 * pad) / span
+    def to_y(v: float) -> float:
+        return height - bpad - (v - low) * ch / span
+
+    pts, series_data = [], []
+    for i, (d, v) in enumerate(series):
+        x, y = to_x(i), to_y(v)
+        pts.append(f"{x:.1f},{y:.1f}")
+        series_data.append({'x': round(x, 1), 'y': round(y, 1),
+                            'value': round(v, 2), 'date': str(d)})
+
+    # y-axis: 4 evenly spaced ticks
+    y_ticks = []
+    for i in range(4):
+        v = low + i * span / 3
+        label = f"${v/1000:.1f}k" if abs(v) >= 1000 else f"${v:.0f}"
+        y_ticks.append({'y': round(to_y(v), 1), 'label': label})
+
+    fill_pts = pts + [f"{to_x(last_index):.1f},{height - bpad}",
+                      f"{to_x(0):.1f},{height - bpad}"]
+    zero_y = to_y(0.0)
     return {
-        'points': ' '.join(points),
+        'points': ' '.join(pts),
+        'fill_points': ' '.join(fill_pts),
+        'series_data': series_data,
+        'y_ticks': y_ticks,
         'zero_y': round(zero_y, 1),
         'low': low,
         'high': high,
         'height': height,
         'width': width,
+        'lpad': lpad,
         'start': series[0][0],
         'end': series[-1][0],
     }

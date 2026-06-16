@@ -346,19 +346,73 @@
             {% endif %}
         </div>
         {% if chart %}
-        <svg viewBox="0 0 {{ chart.width }} {{ chart.height }}"
-             style="width:100%;height:{{ chart.height }}px;" role="img" aria-label="Balance over time">
+        <div style="position:relative;">
+        <svg id="balance-chart" viewBox="0 0 {{ chart.width }} {{ chart.height }}"
+             style="width:100%;height:{{ chart.height }}px;display:block;" role="img" aria-label="Balance over time">
             <defs>
                 <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stop-color="#5c6bc0" stop-opacity="0.2"/>
                     <stop offset="100%" stop-color="#5c6bc0" stop-opacity="0.02"/>
                 </linearGradient>
             </defs>
-            <polyline points="{{ chart.points }},{{ chart.width - 8 }},{{ chart.height }} 8,{{ chart.height }}"
-                      fill="url(#chartFill)" stroke="none"/>
+            <!-- y-axis gridlines + labels -->
+            {% for tick in chart.y_ticks %}
+            <line x1="{{ chart.lpad }}" y1="{{ tick.y }}" x2="{{ chart.width - 12 }}" y2="{{ tick.y }}"
+                  stroke="#2a2d3e" stroke-width="1"/>
+            <text x="{{ chart.lpad - 6 }}" y="{{ tick.y }}" text-anchor="end" dominant-baseline="middle"
+                  font-size="10" fill="#6b7280" font-family="system-ui,sans-serif">{{ tick.label }}</text>
+            {% endfor %}
+            <!-- gradient fill -->
+            <polyline points="{{ chart.fill_points }}" fill="url(#chartFill)" stroke="none"/>
+            <!-- line -->
             <polyline points="{{ chart.points }}" fill="none" stroke="#5c6bc0"
                       stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+            <!-- crosshair (hidden until hover) -->
+            <line id="chart-crosshair" x1="0" y1="0" x2="0" y2="{{ chart.height }}"
+                  stroke="#5c6bc0" stroke-width="1" stroke-dasharray="3,3" opacity="0" pointer-events="none"/>
+            <circle id="chart-dot" cx="0" cy="0" r="4" fill="#5c6bc0" stroke="#fff"
+                    stroke-width="1.5" opacity="0" pointer-events="none"/>
+            <!-- transparent hover target -->
+            <rect id="chart-hover-area" x="{{ chart.lpad }}" y="0"
+                  width="{{ chart.width - chart.lpad - 12 }}" height="{{ chart.height }}"
+                  fill="transparent" style="cursor:crosshair;"/>
         </svg>
+        <div id="chart-tooltip"
+             style="position:absolute;display:none;background:#1c1f2e;border:1px solid #2a2d3e;
+                    color:#e2e8f0;padding:5px 9px;border-radius:5px;font-size:0.75rem;
+                    pointer-events:none;white-space:nowrap;z-index:10;"></div>
+        </div>
+        <script>
+        (function(){
+            var pts = {{ chart.series_data | tojson }};
+            var svg  = document.getElementById('balance-chart');
+            var area = document.getElementById('chart-hover-area');
+            var tip  = document.getElementById('chart-tooltip');
+            var ch   = document.getElementById('chart-crosshair');
+            var dot  = document.getElementById('chart-dot');
+            area.addEventListener('mousemove', function(e){
+                var rect = svg.getBoundingClientRect();
+                var scaleX = {{ chart.width }} / rect.width;
+                var mx = (e.clientX - rect.left) * scaleX;
+                var best = pts.reduce(function(a,b){ return Math.abs(b.x-mx)<Math.abs(a.x-mx)?b:a; });
+                ch.setAttribute('x1', best.x); ch.setAttribute('x2', best.x);
+                ch.setAttribute('opacity', '0.6');
+                dot.setAttribute('cx', best.x); dot.setAttribute('cy', best.y);
+                dot.setAttribute('opacity', '1');
+                var val = best.value >= 0 ? '+$'+best.value.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) : '-$'+Math.abs(best.value).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+                tip.textContent = best.date + '  ' + val;
+                var tipX = e.clientX - rect.left + 12;
+                if(tipX + 160 > rect.width) tipX = e.clientX - rect.left - 160;
+                tip.style.left = tipX + 'px';
+                tip.style.top  = (e.clientY - rect.top - 28) + 'px';
+                tip.style.display = 'block';
+            });
+            area.addEventListener('mouseleave', function(){
+                ch.setAttribute('opacity','0'); dot.setAttribute('opacity','0');
+                tip.style.display='none';
+            });
+        })();
+        </script>
         {% else %}
         <div class="empty-state">Not enough data to chart your balance yet.</div>
         {% endif %}
