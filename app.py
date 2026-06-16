@@ -81,7 +81,7 @@ class TransactionForm(FlaskForm):
 
 
 def _parse_amount(value: str) -> Optional[float]:
-    match = re.search(r"\d+(?:\.\d+)?", value)
+    match = re.search(r"[-+]?\d+(?:\.\d+)?", value)
     if not match:
         return None
     return float(match.group(0))

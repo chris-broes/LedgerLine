@@ -122,6 +122,18 @@ def test_index_orders_newest_first(client, monkeypatch):
     assert body.index(b'Newer Entry') < body.index(b'Older Entry')
 
 
+def test_add_transaction_preserves_negative_sign(client):
+    response = client.post('/add', data={
+        'description': 'Blue Bottle Coffee',
+        'amount': '-6.50',
+        'category': 'Auto',
+    }, follow_redirects=True)
+    assert response.status_code == 200
+    assert b'Blue Bottle Coffee' in response.data
+    assert b'-$6.50' in response.data
+    assert b'+$6.50' not in response.data
+
+
 def test_add_transaction_rejects_garbage_amount(client):
     response = client.post('/add', data={
         'description': 'Mystery',
