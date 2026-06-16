@@ -133,6 +133,11 @@ def _spending_profile(transactions: list['Transaction']) -> dict:
         'balance': sum(txn.amount for txn in transactions),
         'category_totals': category_totals,
         'subscription_count': sum(1 for txn in transactions if txn.category == 'Subscriptions'),
+        'recent_transactions': [
+            {'description': t.description, 'amount': t.amount, 'date': str(t.date),
+             'category': t.category}
+            for t in sorted(transactions, key=lambda t: (t.date, t.time), reverse=True)[:20]
+        ],
     }
 
 
