@@ -5,7 +5,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-RUN pip install --no-cache-dir aiohttp==3.9.1
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends gcc python3-dev \
+    && pip install --no-cache-dir aiohttp==3.9.1 \
+    && apt-get purge -y --auto-remove gcc python3-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY app.py .
 
