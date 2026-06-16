@@ -411,35 +411,53 @@
                   text-anchor="middle" font-size="10" fill="#9ea3b7"
                   font-family="system-ui,sans-serif">${{ '{:,.0f}'.format(sankey.income_total) }}</text>
 
-            <!-- col2: category nodes -->
+            <!-- col2: category nodes + adaptive labels -->
             {% for c in sankey.col2 %}
             {% set lh = [c.h, 3]|max %}
             <rect x="{{ sankey.col2_x }}" y="{{ c.y_rect|round(1) }}"
                   width="{{ sankey.nw }}" height="{{ lh|round(1) }}"
                   fill="{{ c.color }}" rx="3"/>
-            <!-- label between col2 and col3 -->
-            <text x="{{ sankey.col2_x + sankey.nw + 8 }}" y="{{ (c.y_rect + lh / 2 - 6)|round(1) }}"
+            {% if c.h >= 14 %}
+            {# enough room for at least the name #}
+            {% set cy = (c.y_rect + lh / 2)|round(1) %}
+            {% if c.h >= 26 %}
+            {# two-line label: name + amount% #}
+            <text x="{{ sankey.col2_x + sankey.nw + 8 }}" y="{{ (cy - 6)|round(1) }}"
                   dominant-baseline="middle" font-size="11.5" font-weight="600"
                   fill="#374151" font-family="system-ui,sans-serif">{{ c.name }}</text>
-            <text x="{{ sankey.col2_x + sankey.nw + 8 }}" y="{{ (c.y_rect + lh / 2 + 8)|round(1) }}"
+            <text x="{{ sankey.col2_x + sankey.nw + 8 }}" y="{{ (cy + 8)|round(1) }}"
                   dominant-baseline="middle" font-size="10" fill="#9ea3b7"
-                  font-family="system-ui,sans-serif">
-                ${{ '{:,.0f}'.format(c.amount) }} · {{ c.pct }}%</text>
+                  font-family="system-ui,sans-serif">${{ '{:,.0f}'.format(c.amount) }} · {{ c.pct }}%</text>
+            {% else %}
+            {# single-line label: name only #}
+            <text x="{{ sankey.col2_x + sankey.nw + 8 }}" y="{{ cy }}"
+                  dominant-baseline="middle" font-size="11" font-weight="600"
+                  fill="#374151" font-family="system-ui,sans-serif">{{ c.name }}</text>
+            {% endif %}
+            {% endif %}
             {% endfor %}
 
-            <!-- col3: subcategory nodes + right labels -->
+            <!-- col3: subcategory nodes + adaptive labels -->
             {% for s in sankey.col3 %}
             {% set sh = [s.h, 3]|max %}
             <rect x="{{ sankey.col3_x }}" y="{{ s.y_rect|round(1) }}"
                   width="{{ sankey.nw }}" height="{{ sh|round(1) }}"
                   fill="{{ s.color }}" rx="3"/>
-            <text x="{{ sankey.col3_x + sankey.nw + 8 }}" y="{{ (s.y_rect + sh / 2 - 5)|round(1) }}"
+            {% if s.h >= 20 %}
+            {% set sy = (s.y_rect + sh / 2)|round(1) %}
+            {% if s.h >= 28 %}
+            <text x="{{ sankey.col3_x + sankey.nw + 8 }}" y="{{ (sy - 6)|round(1) }}"
                   dominant-baseline="middle" font-size="11" font-weight="600"
                   fill="#374151" font-family="system-ui,sans-serif">{{ s.name }}</text>
-            <text x="{{ sankey.col3_x + sankey.nw + 8 }}" y="{{ (s.y_rect + sh / 2 + 7)|round(1) }}"
+            <text x="{{ sankey.col3_x + sankey.nw + 8 }}" y="{{ (sy + 7)|round(1) }}"
                   dominant-baseline="middle" font-size="10" fill="#9ea3b7"
-                  font-family="system-ui,sans-serif">
-                ${{ '{:,.0f}'.format(s.amount) }} · {{ s.pct }}%</text>
+                  font-family="system-ui,sans-serif">${{ '{:,.0f}'.format(s.amount) }} · {{ s.pct }}%</text>
+            {% else %}
+            <text x="{{ sankey.col3_x + sankey.nw + 8 }}" y="{{ sy }}"
+                  dominant-baseline="middle" font-size="11" font-weight="600"
+                  fill="#374151" font-family="system-ui,sans-serif">{{ s.name }}</text>
+            {% endif %}
+            {% endif %}
             {% endfor %}
 
         </svg>

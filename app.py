@@ -261,6 +261,9 @@ def _sankey_chart(
     col3: list[dict] = []
     flows_23: list[dict] = []
 
+    INTER_GROUP_GAP = 14   # gap between subcategory groups from different categories
+    col3_next_y = 0.0      # tracks bottom of last col3 node (prevents inter-group overlaps)
+
     for c2 in col2:
         cat = c2['name']
         if cat not in SUBCAT_CATS or cat not in subcat_totals:
@@ -270,7 +273,8 @@ def _sankey_chart(
         sorted_subs = [(k, subs[k]) for k in order if k in subs]
         sorted_subs += [(k, v) for k, v in subs.items() if k not in order]
 
-        y3 = c2['y_rect']
+        # Start this group either at the col2 node top or after previous group + gap
+        y3 = max(c2['y_rect'], col3_next_y + INTER_GROUP_GAP) if col3_next_y > 0 else c2['y_rect']
         y2_cursor = c2['y_rect']
         for sub_name, sub_amt in sorted_subs:
             h3 = sub_amt * ppu
@@ -285,6 +289,7 @@ def _sankey_chart(
                              'color': c2['color']})
             y3 += h3 + GAP3
             y2_cursor += h3
+        col3_next_y = y3  # bottom of this group (last node bottom + last GAP3)
 
     # ── SVG height ───────────────────────────────────────────────────────
     bottoms = [c['y'] + c['h'] for c in col0] + \
