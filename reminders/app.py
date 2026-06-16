@@ -36,9 +36,12 @@ async def get_reminder(request: web.Request) -> web.Response:
 async def create_reminder(request: web.Request) -> web.Response:
     global NEXT_ID
     data = await request.json()
+    title = str(data.get('title', '')).strip()
+    if not title:
+        return web.json_response({'error': 'title is required'}, status=400)
     reminder = {
         'id': NEXT_ID,
-        'title': data.get('title', ''),
+        'title': title,
         'completed': data.get('completed', False),
     }
     REMINDERS[NEXT_ID] = reminder
