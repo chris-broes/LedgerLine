@@ -32,6 +32,20 @@ class ReminderApiTest(AioHTTPTestCase):
         assert fetched['title'] == 'Transfer to savings'
         assert fetched['completed'] is False
 
+    async def test_create_rejects_empty_title(self):
+        resp = await self.client.post('/reminders', json={'title': ''})
+        assert resp.status == 400
+        resp = await self.client.get('/reminders')
+        data = await resp.json()
+        assert len(data) == 1
+
+    async def test_create_rejects_whitespace_title(self):
+        resp = await self.client.post('/reminders', json={'title': '   '})
+        assert resp.status == 400
+        resp = await self.client.get('/reminders')
+        data = await resp.json()
+        assert len(data) == 1
+
     async def test_toggle_completed(self):
         resp = await self.client.put('/reminders/1', json={'completed': True})
         assert resp.status == 200
