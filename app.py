@@ -81,10 +81,11 @@ class TransactionForm(FlaskForm):
 
 
 def _parse_amount(value: str) -> Optional[float]:
-    match = re.search(r"\d+(?:\.\d+)?", value)
+    match = re.search(r"([-+]?)\s*\$?\s*(\d+(?:\.\d+)?)", value)
     if not match:
         return None
-    return float(match.group(0))
+    sign = -1.0 if match.group(1) == '-' else 1.0
+    return sign * float(match.group(2))
 
 
 @app.route('/health')
