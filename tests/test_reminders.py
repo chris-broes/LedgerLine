@@ -22,6 +22,25 @@ class ReminderApiTest(AioHTTPTestCase):
         assert len(data) == 1
         assert data[0]['title'] == 'Pay credit card statement'
 
+    async def test_list_orders_active_before_completed(self):
+        await self.client.post('/reminders', json={'title': 'Pay electricity bill'})
+        await self.client.post('/reminders', json={'title': 'Renew insurance'})
+        resp = await self.client.put('/reminders/1', json={'completed': True})
+        assert resp.status == 200
+
+        resp = await self.client.get('/reminders')
+        assert resp.status == 200
+        data = await resp.json()
+
+        titles = [item['title'] for item in data]
+        assert titles == [
+            'Pay electricity bill',
+            'Renew insurance',
+            'Pay credit card statement',
+        ]
+        completed_flags = [item['completed'] for item in data]
+        assert completed_flags == [False, False, True]
+
     async def test_create_and_get_reminder(self):
         resp = await self.client.post('/reminders', json={'title': 'Transfer to savings'})
         assert resp.status == 201
