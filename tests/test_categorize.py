@@ -13,6 +13,14 @@ def test_transport():
     assert categorize('Uber trip downtown') == 'Transport'
 
 
+def test_uber_eats_is_food():
+    assert categorize('Uber Eats order') == 'Food'
+
+
+def test_plain_uber_ride_is_transport():
+    assert categorize('Uber ride') == 'Transport'
+
+
 def test_groceries():
     assert categorize('Whole Foods Market') == 'Food'
 

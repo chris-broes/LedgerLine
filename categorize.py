@@ -2,6 +2,7 @@
 
 # First match wins, so rule order is significant.
 RULES: list[tuple[tuple[str, ...], str]] = [
+    (('uber eats',), 'Food'),
     (('uber', 'lyft', 'transit', 'metro', 'parking', 'shell', 'chevron'), 'Transport'),
     (('coffee', 'cafe', 'restaurant', 'grill', 'pizza', 'doordash', 'grubhub', 'eats', 'bakery', 'bar '), 'Food'),
     (('grocery', 'market', 'safeway', 'trader', 'whole foods', 'costco'), 'Food'),
