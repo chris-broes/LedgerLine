@@ -32,6 +32,24 @@ class ReminderApiTest(AioHTTPTestCase):
         assert fetched['title'] == 'Transfer to savings'
         assert fetched['completed'] is False
 
+    async def test_list_groups_active_before_completed(self):
+        await self.client.post('/reminders', json={'title': 'Pay electricity bill'})
+        await self.client.post('/reminders', json={'title': 'Transfer to savings'})
+        await self.client.put('/reminders/1', json={'completed': True})
+
+        resp = await self.client.get('/reminders')
+        assert resp.status == 200
+        data = await resp.json()
+
+        titles = [item['title'] for item in data]
+        assert titles == [
+            'Pay electricity bill',
+            'Transfer to savings',
+            'Pay credit card statement',
+        ]
+        completed_flags = [item['completed'] for item in data]
+        assert completed_flags == [False, False, True]
+
     async def test_toggle_completed(self):
         resp = await self.client.put('/reminders/1', json={'completed': True})
         assert resp.status == 200

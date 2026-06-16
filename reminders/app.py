@@ -22,7 +22,11 @@ _seed_default()
 
 
 async def list_reminders(request: web.Request) -> web.Response:
-    return web.json_response(list(REMINDERS.values()))
+    ordered = sorted(
+        REMINDERS.values(),
+        key=lambda reminder: (reminder['completed'], reminder['id']),
+    )
+    return web.json_response(ordered)
 
 
 async def get_reminder(request: web.Request) -> web.Response:
