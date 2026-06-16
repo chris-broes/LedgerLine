@@ -44,6 +44,25 @@ class ReminderApiTest(AioHTTPTestCase):
         resp = await self.client.get('/reminders/1')
         assert resp.status == 404
 
+    async def test_list_orders_active_before_completed(self):
+        await self.client.post('/reminders', json={'title': 'Pay electricity bill'})
+        await self.client.post('/reminders', json={'title': 'Renew insurance'})
+        resp = await self.client.put('/reminders/1', json={'completed': True})
+        assert resp.status == 200
+
+        resp = await self.client.get('/reminders')
+        assert resp.status == 200
+        data = await resp.json()
+
+        titles = [r['title'] for r in data]
+        assert titles == [
+            'Pay electricity bill',
+            'Renew insurance',
+            'Pay credit card statement',
+        ]
+        completed_flags = [r['completed'] for r in data]
+        assert completed_flags == [False, False, True]
+
     async def test_health(self):
         resp = await self.client.get('/health')
         assert resp.status == 200
