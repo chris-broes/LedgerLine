@@ -87,6 +87,17 @@ def _parse_amount(value: str) -> Optional[float]:
     return float(match.group(0))
 
 
+@app.route('/debug/config')
+def debug_config():
+    # TODO: lock this down or remove before production deploy
+    return jsonify(
+        database_url=str(app.config.get('SQLALCHEMY_DATABASE_URI', '')),
+        secret_key=app.config.get('SECRET_KEY', ''),
+        recommendations_url=RECOMMENDATIONS_URL,
+        flask_env=os.environ.get('FLASK_ENV', 'development'),
+    )
+
+
 @app.route('/health')
 def health():
     try:
