@@ -32,11 +32,13 @@ migrate = Migrate(app, db)
 RECOMMENDATIONS_URL = os.environ.get('RECOMMENDATIONS_URL', 'http://127.0.0.1:8002')
 
 CATEGORY_COLORS: dict[str, str] = {
+    'Housing':       '#0ea5e9',
     'Dining':        '#ef4444',
     'Groceries':     '#f97316',
     'Transport':     '#3b82f6',
     'Subscriptions': '#8b5cf6',
     'Shopping':      '#ec4899',
+    'Health':        '#f43f5e',
     'Refund':        '#10b981',
     'Income':        '#22c55e',
     'Other':         '#6b7280',
@@ -44,11 +46,13 @@ CATEGORY_COLORS: dict[str, str] = {
 
 CATEGORIES = [
     ('Auto', 'Auto-detect from description'),
+    ('Housing', 'Housing'),
     ('Dining', 'Dining'),
     ('Groceries', 'Groceries'),
     ('Transport', 'Transport'),
     ('Subscriptions', 'Subscriptions'),
     ('Shopping', 'Shopping'),
+    ('Health', 'Health'),
     ('Refund', 'Refund'),
     ('Income', 'Income'),
     ('Other', 'Other'),
@@ -62,6 +66,7 @@ class Transaction(db.Model):
     description = db.Column(db.String(200), nullable=False)
     amount = db.Column(db.Float, nullable=False)
     category = db.Column(db.String(40), nullable=False)
+    subcategory = db.Column(db.String(40), nullable=True)
 
 
 class TransactionForm(FlaskForm):
@@ -113,7 +118,7 @@ def index():
         spend_total=spend_total,
         recommendations=_fetch_recommendations(profile),
         chart=_balance_chart(transactions),
-        sankey=_sankey_chart(categories, spend_total),
+        sankey=_sankey_chart(transactions, categories, spend_total),
         monthly_income=cashflow['income'],
         monthly_expenses=cashflow['expenses'],
         category_colors=CATEGORY_COLORS,
@@ -132,49 +137,127 @@ def _spending_profile(transactions: list['Transaction']) -> dict:
     }
 
 
-def _sankey_chart(categories: list[tuple], spend_total: float) -> Optional[dict]:
-    if not categories or spend_total <= 0:
+def _bb(lx: float, ly1: float, ly2: float, rx: float, ry1: float, ry2: float) -> str:
+    """Smooth bezier band SVG path from left edge (ly1..ly2) to right edge (ry1..ry2)."""
+    cx1 = lx + (rx - lx) * 0.42
+    cx2 = rx - (rx - lx) * 0.42
+    return (
+        f"M {lx:.1f} {ly1:.1f} "
+        f"C {cx1:.1f} {ly1:.1f} {cx2:.1f} {ry1:.1f} {rx:.1f} {ry1:.1f} "
+        f"L {rx:.1f} {ry2:.1f} "
+        f"C {cx2:.1f} {ry2:.1f} {cx1:.1f} {ly2:.1f} {lx:.1f} {ly2:.1f} Z"
+    )
+
+
+def _sankey_chart(
+    transactions: list['Transaction'],
+    categories: list[tuple],
+    spend_total: float,
+) -> Optional[dict]:
+    """3-column Monarch-style cash-flow Sankey.
+
+    Col 0  Income sources (Payroll / Freelance / Other)
+    Col 1  Income aggregate node
+    Col 2  Savings + spending categories
+    """
+    income_total = sum(t.amount for t in transactions if t.amount > 0)
+    if income_total <= 0 or spend_total <= 0:
         return None
 
-    W, H = 480, 240
-    node_w = 16
-    gap = 10
-    n = len(categories)
-    right_h = H - (n - 1) * gap
-    cx = W / 2
+    # ── layout constants ──────────────────────────────────────────────────
+    H = 380.0          # pixel height = total income
+    PAD = 20.0         # top/bottom padding
+    NW = 18            # node width (px)
+    GAP = 10           # gap between col-2 nodes (px)
+    GAP_SAVE = 16      # larger gap after Savings node
+    ppu = H / income_total  # pixels-per-dollar
 
-    flows: list[dict] = []
-    left_y = 0.0
-    right_y = 0.0
+    col0_x = 145       # income source nodes (left edge)
+    col1_x = 335       # income aggregate node (left edge)
+    col2_x = 560       # savings + categories (left edge)
+    vw = 870           # total SVG viewBox width (room for right labels)
 
-    for name, amount in categories:
-        prop = amount / spend_total
-        lh = prop * H
-        rh = prop * right_h
+    # ── income sources (col 0) ────────────────────────────────────────────
+    src: dict[str, float] = {}
+    for t in transactions:
+        if t.amount <= 0:
+            continue
+        key = t.subcategory if t.subcategory and t.category == 'Income' else t.category
+        if key in ('Refund', 'Income'):
+            key = t.subcategory or 'Other Income'
+        src[key] = src.get(key, 0.0) + t.amount
 
-        path = (
-            f"M {node_w} {left_y:.1f} "
-            f"C {cx} {left_y:.1f} {cx} {right_y:.1f} {W - node_w} {right_y:.1f} "
-            f"L {W - node_w} {right_y + rh:.1f} "
-            f"C {cx} {right_y + rh:.1f} {cx} {left_y + lh:.1f} {node_w} {left_y + lh:.1f} Z"
-        )
+    ORDER = ['Payroll', 'Freelance']
+    sources = [(k, src[k]) for k in ORDER if k in src]
+    others = sum(v for k, v in src.items() if k not in ORDER)
+    if others > 0:
+        sources.append(('Other Income', others))
 
-        flows.append({
-            'name': name,
-            'amount': amount,
-            'pct': round(prop * 100),
-            'path': path,
-            'left_y': left_y,
-            'left_h': lh,
-            'right_y': right_y,
-            'right_h': rh,
-            'label_y': right_y + rh / 2,
+    src_colors = {'Payroll': '#22c55e', 'Freelance': '#10b981', 'Other Income': '#6ee7b7'}
+
+    col0: list[dict] = []
+    y = PAD
+    for name, amt in sources:
+        h = amt * ppu
+        col0.append({'name': name, 'y': y, 'h': h, 'mid': y + h / 2,
+                     'color': src_colors.get(name, '#22c55e'), 'amount': amt})
+        y += h
+
+    # ── income node (col 1) ───────────────────────────────────────────────
+    col1 = {'y': PAD, 'h': H, 'mid': PAD + H / 2}
+
+    # ── savings + categories (col 2) ─────────────────────────────────────
+    savings = income_total - spend_total
+    col2_items: list[tuple] = []
+    if savings > 0:
+        col2_items.append(('Savings', savings, '#22c55e', True))
+    for name, amt in categories:
+        col2_items.append((name, amt, CATEGORY_COLORS.get(name, '#6b7280'), False))
+
+    col2: list[dict] = []
+    y_rect = PAD
+    y_flow = PAD          # tracks proportional position on col1 right edge
+    for name, amt, color, is_savings in col2_items:
+        h = amt * ppu
+        pct = round(amt / income_total * 100, 1)
+        col2.append({
+            'name': name, 'amount': amt, 'color': color,
+            'y_rect': y_rect, 'h': h, 'mid': y_rect + h / 2,
+            'y_flow': y_flow, 'pct': pct,
         })
+        y_rect += h + (GAP_SAVE if is_savings else GAP)
+        y_flow += h
 
-        left_y += lh
-        right_y += rh + gap
+    # ── flows col0 → col1 ─────────────────────────────────────────────────
+    flows_01: list[dict] = []
+    y_col1_in = PAD
+    for s in col0:
+        path = _bb(col0_x + NW, s['y'], s['y'] + s['h'],
+                   col1_x, y_col1_in, y_col1_in + s['h'])
+        flows_01.append({'path': path, 'color': s['color'], 'name': s['name']})
+        y_col1_in += s['h']
 
-    return {'flows': flows, 'width': W, 'height': H, 'node_w': node_w}
+    # ── flows col1 → col2 ─────────────────────────────────────────────────
+    flows_12: list[dict] = []
+    for c2 in col2:
+        path = _bb(col1_x + NW, c2['y_flow'], c2['y_flow'] + c2['h'],
+                   col2_x, c2['y_rect'], c2['y_rect'] + c2['h'])
+        flows_12.append({'path': path, 'color': c2['color']})
+
+    # ── total SVG height ──────────────────────────────────────────────────
+    max_y = max(
+        col0[-1]['y'] + col0[-1]['h'],
+        col1['y'] + col1['h'],
+        col2[-1]['y_rect'] + col2[-1]['h'],
+    ) + PAD if col0 and col2 else H + 2 * PAD
+
+    return {
+        'col0': col0, 'col1': col1, 'col2': col2,
+        'flows_01': flows_01, 'flows_12': flows_12,
+        'col0_x': col0_x, 'col1_x': col1_x, 'col2_x': col2_x,
+        'nw': NW, 'vw': vw, 'vh': round(max_y),
+        'income_total': income_total,
+    }
 
 
 def _monthly_cashflow(transactions: list['Transaction']) -> dict:
@@ -196,7 +279,7 @@ def _balance_chart(transactions: list['Transaction']) -> Optional[dict]:
         running += txn.amount
         series.append((txn.date, running))
 
-    width, height, pad = 640, 180, 14
+    width, height, pad = 640, 65, 6
     values = [value for _, value in series]
     low = min(min(values), 0.0)
     high = max(max(values), 0.0)
