@@ -66,10 +66,11 @@ SEED_TRANSACTIONS = [
     ('Planet Fitness',            15,  17,   -25.00, 'Health',        'Fitness'),
 
     # ── Investments (balance chart only — filtered from feed and Sankey) ──
-    ('Vanguard — dividend reinvestment', 28,  9,  +185.00, 'Investment', None),
-    ('Fidelity — portfolio gain',        21, 10,  +210.00, 'Investment', None),
-    ('Vanguard — dividend reinvestment', 14,  9,  +195.00, 'Investment', None),
-    ('Fidelity — portfolio gain',         7, 10,  +265.00, 'Investment', None),
+    ('Portfolio — opening balance',      30,  8, +100000.00, 'Investment', None),
+    ('Vanguard — dividend reinvestment', 28,  9,    +650.00, 'Investment', None),
+    ('Fidelity — portfolio gain',        21, 10,   +1100.00, 'Investment', None),
+    ('Vanguard — dividend reinvestment', 14,  9,   +1050.00, 'Investment', None),
+    ('Fidelity — portfolio gain',         7, 10,   +1117.00, 'Investment', None),
 ]
 
 

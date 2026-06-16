@@ -355,11 +355,11 @@
                     <stop offset="100%" stop-color="#5c6bc0" stop-opacity="0.02"/>
                 </linearGradient>
             </defs>
-            <!-- y-axis gridlines + labels -->
+            <!-- y-axis tick labels -->
             {% for tick in chart.y_ticks %}
-            <line x1="{{ chart.lpad }}" y1="{{ tick.y }}" x2="{{ chart.width - 12 }}" y2="{{ tick.y }}"
-                  stroke="#2a2d3e" stroke-width="1"/>
-            <text x="{{ chart.lpad - 6 }}" y="{{ tick.y }}" text-anchor="end" dominant-baseline="middle"
+            <line x1="{{ chart.lpad - 4 }}" y1="{{ tick.y }}" x2="{{ chart.lpad }}" y2="{{ tick.y }}"
+                  stroke="#6b7280" stroke-width="1"/>
+            <text x="{{ chart.lpad - 7 }}" y="{{ tick.y }}" text-anchor="end" dominant-baseline="middle"
                   font-size="10" fill="#6b7280" font-family="system-ui,sans-serif">{{ tick.label }}</text>
             {% endfor %}
             <!-- gradient fill -->
