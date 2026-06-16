@@ -1,10 +1,10 @@
-from flask import Flask, render_template, redirect, url_for, jsonify
+from flask import Flask, render_template, redirect, url_for, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_wtf import FlaskForm
 from wtforms import SelectField, StringField, SubmitField
 from wtforms.validators import DataRequired, Length
-from datetime import datetime
+from datetime import datetime, date
 import os
 import re
 import logging
@@ -30,6 +30,17 @@ db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
 RECOMMENDATIONS_URL = os.environ.get('RECOMMENDATIONS_URL', 'http://127.0.0.1:8002')
+
+CATEGORY_COLORS: dict[str, str] = {
+    'Dining':        '#ef4444',
+    'Groceries':     '#f97316',
+    'Transport':     '#3b82f6',
+    'Subscriptions': '#8b5cf6',
+    'Shopping':      '#ec4899',
+    'Refund':        '#10b981',
+    'Income':        '#22c55e',
+    'Other':         '#6b7280',
+}
 
 CATEGORIES = [
     ('Auto', 'Auto-detect from description'),
@@ -93,6 +104,7 @@ def index():
     categories = sorted(
         profile['category_totals'].items(), key=lambda item: item[1], reverse=True,
     )
+    cashflow = _monthly_cashflow(transactions)
     return render_template(
         'index.html',
         transactions=transactions,
@@ -101,6 +113,9 @@ def index():
         spend_total=spend_total,
         recommendations=_fetch_recommendations(profile),
         chart=_balance_chart(transactions),
+        monthly_income=cashflow['income'],
+        monthly_expenses=cashflow['expenses'],
+        category_colors=CATEGORY_COLORS,
     )
 
 
@@ -114,6 +129,14 @@ def _spending_profile(transactions: list['Transaction']) -> dict:
         'category_totals': category_totals,
         'subscription_count': sum(1 for txn in transactions if txn.category == 'Subscriptions'),
     }
+
+
+def _monthly_cashflow(transactions: list['Transaction']) -> dict:
+    today = date.today()
+    monthly = [t for t in transactions if t.date.year == today.year and t.date.month == today.month]
+    income = sum(t.amount for t in monthly if t.amount > 0)
+    expenses = abs(sum(t.amount for t in monthly if t.amount < 0))
+    return {'income': income, 'expenses': expenses}
 
 
 def _balance_chart(transactions: list['Transaction']) -> Optional[dict]:
@@ -161,6 +184,12 @@ def _fetch_recommendations(profile: dict) -> Optional[list[dict]]:
     except (requests.RequestException, ValueError) as exc:
         logger.warning("Recommendations service unavailable: %s", exc)
         return None
+
+
+@app.route('/coming-soon')
+def coming_soon():
+    page = request.args.get('page', 'This feature')
+    return render_template('coming_soon.html', page=page)
 
 
 @app.route('/add', methods=['GET', 'POST'])

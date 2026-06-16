@@ -24,7 +24,7 @@ def test_index(client):
     response = client.get('/')
     assert response.status_code == 200
     assert b'LedgerLine' in response.data
-    assert b'Current Balance' in response.data
+    assert b'Net Balance' in response.data
 
 
 def test_health(client):
