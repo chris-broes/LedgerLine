@@ -64,6 +64,12 @@ SEED_TRANSACTIONS = [
     # ── Health ────────────────────────────────────────────────────────────
     ('Dentist copay',             19,  10,   -35.00, 'Health',        'Dental'),
     ('Planet Fitness',            15,  17,   -25.00, 'Health',        'Fitness'),
+
+    # ── Investments (balance chart only — filtered from feed and Sankey) ──
+    ('Vanguard — dividend reinvestment', 28,  9,  +185.00, 'Investment', None),
+    ('Fidelity — portfolio gain',        21, 10,  +210.00, 'Investment', None),
+    ('Vanguard — dividend reinvestment', 14,  9,  +195.00, 'Investment', None),
+    ('Fidelity — portfolio gain',         7, 10,  +265.00, 'Investment', None),
 ]
 
 

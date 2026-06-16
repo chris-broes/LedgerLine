@@ -102,21 +102,22 @@ def index():
     transactions = Transaction.query.order_by(
         Transaction.date.desc(), Transaction.time.desc()
     ).all()
-    profile = _spending_profile(transactions)
+    display_txns = [t for t in transactions if t.category != 'Investment']
+    profile = _spending_profile(display_txns)
     spend_total = sum(profile['category_totals'].values())
     categories = sorted(
         profile['category_totals'].items(), key=lambda item: item[1], reverse=True,
     )
-    cashflow = _monthly_cashflow(transactions)
+    cashflow = _monthly_cashflow(display_txns)
     return render_template(
         'index.html',
-        transactions=transactions,
-        balance=profile['balance'],
+        transactions=display_txns,
+        balance=sum(t.amount for t in transactions),
         categories=categories,
         spend_total=spend_total,
         recommendations=_fetch_recommendations(profile),
         chart=_balance_chart(transactions),
-        sankey=_sankey_chart(transactions, categories, spend_total),
+        sankey=_sankey_chart(display_txns, categories, spend_total),
         monthly_income=cashflow['income'],
         monthly_expenses=cashflow['expenses'],
         category_colors=CATEGORY_COLORS,
