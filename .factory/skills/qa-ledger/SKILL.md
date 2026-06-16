@@ -3,7 +3,8 @@ name: qa-ledger
 description: >
   API-level QA tests for the LedgerLine ledger service (Flask, port 5000).
   Tests transaction posting, amount sign integrity, auto-categorization,
-  balance calculation, insights rendering, and recommendations integration.
+  balance calculation, dashboard rendering, and recommendations integration.
+  Includes visual QA for the Sankey cash-flow diagram.
 ---
 
 # QA Sub-Skill: Ledger Service
@@ -18,6 +19,12 @@ sleep 2
 ```
 
 **Auth:** None required.
+
+**Category vocabulary (as of Monarch redesign):**
+- Spending categories: `Housing`, `Food`, `Transport`, `Subscriptions`, `Shopping`, `Health`, `Other`
+- Income/credit: `Income`, `Refund`
+- `Food` replaced the former `Dining` and `Groceries` categories.
+- Auto-detect maps coffee/restaurant/delivery → `Food`; grocery/market → `Food`.
 
 ---
 
@@ -37,7 +44,7 @@ The core domain invariant: negative amounts must be stored as negative.
 ```bash
 # Post a purchase
 curl -sf -X POST http://127.0.0.1:5000/add \
-  -d "description=QA: Coffee&amount=-6.50&category=Dining" \
+  -d "description=QA: Coffee&amount=-6.50&category=Food" \
   -c /tmp/qa-cookies.txt \
   -b /tmp/qa-cookies.txt \
   -L | grep -o "QA: Coffee\|-\$6\.50"
@@ -50,50 +57,57 @@ sqlite3 ledgerline.db "SELECT amount FROM 'transaction' WHERE description='QA: C
 ### Flow 3: Transaction Posting — Income/Credit
 ```bash
 curl -sf -X POST http://127.0.0.1:5000/add \
-  -d "description=QA: Payroll&amount=1450.00&category=Income" \
-  -c /tmp/qa-cookies.txt -b /tmp/qa-cookies.txt -L | grep -o "QA: Payroll\|+\$1450"
+  -d "description=QA: Payroll&amount=2150.00&category=Income" \
+  -c /tmp/qa-cookies.txt -b /tmp/qa-cookies.txt -L | grep -o "QA: Payroll\|+\$2150"
 
 sqlite3 ledgerline.db "SELECT amount FROM 'transaction' WHERE description='QA: Payroll' ORDER BY id DESC LIMIT 1;"
-# Expect: 1450.0
+# Expect: 2150.0
 ```
 
 ### Flow 4: Balance Calculation
 ```bash
-# After posting purchase (-6.50) and income (1450.00):
+# After posting purchase (-6.50) and income (2150.00):
 sqlite3 ledgerline.db "SELECT SUM(amount) FROM 'transaction' WHERE description LIKE 'QA:%';"
-# Expect: 1443.5  (income - purchase)
+# Expect: 2143.5  (income - purchase)
 ```
 
 ### Flow 5: Auto-Categorization
 ```bash
-# "Uber Eats" MUST categorize as Dining (not Transport — this is seeded bug T7)
+# "Uber Eats" MUST categorize as Food (not Transport — seeded bug T7)
 curl -sf -X POST http://127.0.0.1:5000/add \
   -d "description=QA: Uber Eats order&amount=-23.40&category=Auto" \
   -c /tmp/qa-cookies.txt -b /tmp/qa-cookies.txt -L
 
 sqlite3 ledgerline.db "SELECT category FROM 'transaction' WHERE description='QA: Uber Eats order' ORDER BY id DESC LIMIT 1;"
-# Current expected: Transport (the seeded bug — confirms T7 still unfixed)
-# Post-fix expected: Dining
+# Current expected: Transport (seeded bug T7 — confirms still unfixed)
+# Post-fix expected: Food
 
-# Netflix should categorize as Subscriptions
+# Netflix should categorize as Subscriptions (control — must not regress)
 curl -sf -X POST http://127.0.0.1:5000/add \
   -d "description=QA: Netflix monthly&amount=-15.99&category=Auto" \
   -c /tmp/qa-cookies.txt -b /tmp/qa-cookies.txt -L
 
 sqlite3 ledgerline.db "SELECT category FROM 'transaction' WHERE description='QA: Netflix monthly' ORDER BY id DESC LIMIT 1;"
 # Expect: Subscriptions
+
+# Uber (non-food) should remain Transport
+curl -sf -X POST http://127.0.0.1:5000/add \
+  -d "description=QA: Uber ride&amount=-18.50&category=Auto" \
+  -c /tmp/qa-cookies.txt -b /tmp/qa-cookies.txt -L
+
+sqlite3 ledgerline.db "SELECT category FROM 'transaction' WHERE description='QA: Uber ride' ORDER BY id DESC LIMIT 1;"
+# Expect: Transport (must not regress when T7 is fixed)
 ```
 
-### Flow 6: Index Page Renders (balance, chart, activity)
+### Flow 6: Dashboard Renders (balance, chart, activity)
 ```bash
 PAGE=$(curl -sf http://127.0.0.1:5000/)
-echo "$PAGE" | grep -o "Current Balance\|Balance Over Time\|Recent Activity\|Spending by Category"
+echo "$PAGE" | grep -o "Net Balance\|Balance Over Time\|Recent Activity\|Spending by Category"
 # Expect all four headings present
 ```
 
 ### Flow 7: Newest-First Ordering
 ```bash
-# Post two transactions with known descriptions, verify newer appears first in HTML
 curl -sf -X POST http://127.0.0.1:5000/add \
   -d "description=QA: OLDER&amount=-1.00&category=Other" \
   -c /tmp/qa-cookies.txt -b /tmp/qa-cookies.txt -L > /dev/null
@@ -110,7 +124,6 @@ NEWER_POS=$(echo "$PAGE" | grep -n "QA: NEWER" | head -1 | cut -d: -f1)
 
 ### Flow 8: Recommendations Integration (live call to :8002)
 ```bash
-# Requires recommendations service running
 PAGE=$(curl -sf http://127.0.0.1:5000/)
 echo "$PAGE" | grep -oE "Cashback Card|High-Yield Savings|Subscription Optimizer|temporarily unavailable"
 # Expect one or more product names (or "temporarily unavailable" if :8002 is down)
@@ -118,12 +131,10 @@ echo "$PAGE" | grep -oE "Cashback Card|High-Yield Savings|Subscription Optimizer
 
 ### Flow 9: Graceful Degradation (recommendations service down)
 ```bash
-# Stop the recommendations service, confirm dashboard still renders
 pkill -f "recommendations/app.py" 2>/dev/null; sleep 1
 PAGE=$(curl -sf http://127.0.0.1:5000/)
-echo "$PAGE" | grep -o "temporarily unavailable\|Current Balance"
-# Expect: both present (page renders, recs show unavailable message)
-# Restart recs service afterward
+echo "$PAGE" | grep -o "temporarily unavailable\|Net Balance"
+# Expect: both present (page renders; recs show unavailable message)
 python recommendations/app.py &
 ```
 
@@ -132,8 +143,16 @@ python recommendations/app.py &
 HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://127.0.0.1:5000/add \
   -d "description=QA: Bad&amount=not-a-number&category=Other" \
   -c /tmp/qa-cookies.txt -b /tmp/qa-cookies.txt)
-# Expect: 400
 echo "Status: $HTTP_STATUS"
+# Expect: 400
+```
+
+### Flow 11: Sankey Diagram — Visual Text-Overlap Check
+```bash
+# Requires the ledger service running. Fetches live HTML, estimates SVG label
+# bounding boxes, reports any intersecting pairs.
+python tests/check_sankey_overlaps.py http://127.0.0.1:5000
+# Expect: PASS  No Sankey text overlaps (N labels checked)
 ```
 
 ---
@@ -148,13 +167,18 @@ sqlite3 ledgerline.db "DELETE FROM 'transaction' WHERE description LIKE 'QA:%';"
 
 ## Known Failure Modes
 
-1. **CSRF token rejection on POST.** The Flask-WTF CSRF token is embedded in the HTML form. curl POSTs without a valid token will fail form validation silently (200 with re-rendered form, not 302 redirect). Workaround: use the `-c`/`-b` cookie jar AND fetch the form first to capture the token:
+1. **CSRF token rejection on POST.** curl POSTs without a CSRF token fail silently (200 with re-rendered form, no redirect). Workaround: fetch the form first to get the token:
    ```bash
    TOKEN=$(curl -sf -c /tmp/qa-cookies.txt http://127.0.0.1:5000/add | grep -oP 'value="\K[^"]+(?=".*hidden)' | head -1)
    curl -sf -X POST ... -d "csrf_token=$TOKEN&..." -b /tmp/qa-cookies.txt
    ```
-   Alternatively: set `WTF_CSRF_ENABLED=false` only in the QA environment (test env does this via conftest.py).
+   Alternatively: set `WTF_CSRF_ENABLED=false` for the QA environment.
 
-2. **ledgerline.db missing table.** If the migration stamp is stale, `flask db upgrade` is a no-op and `/health` returns `{"status":"error"}`. Fix: `sqlite3 ledgerline.db "DELETE FROM alembic_version;" && FLASK_APP=app.py flask db upgrade`.
+2. **ledgerline.db missing table.** If the migration stamp is stale, `/health` returns `{"status":"error"}`. Fix:
+   ```bash
+   sqlite3 ledgerline.db "DELETE FROM alembic_version;" && FLASK_APP=app.py flask db upgrade
+   ```
 
-3. **Port 5000 in use by macOS AirPlay.** macOS ControlCenter squats port 5000. Run ledger on `--port 5001` and update URLs accordingly.
+3. **Port 5000 in use by macOS AirPlay.** Run ledger on `--port 5001` and update URLs accordingly.
+
+4. **Sankey overlap check requires Python 3.x** and no additional packages — it uses `urllib.request` and `re` from the stdlib only.
