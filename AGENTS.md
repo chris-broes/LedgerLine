@@ -24,7 +24,7 @@ Usability and correctness of money math are the product's differentiators.
 - Run ledger: `SECRET_KEY=dev python app.py` (refuses to boot without `SECRET_KEY`)
 - Run reminders: `python reminders/app.py` (port 8001)
 - Run recommendations: `python recommendations/app.py` (port 8002)
-- Run all (containers): `SECRET_KEY=dev docker compose up --build`
+- Run all (containers): `SECRET_KEY=dev podman compose up --build`
 - Tests: `python -m pytest -q`
 - Lint: `flake8 . --max-line-length=127 --exclude=.venv,migrations,__pycache__`
 - Security scan: `bandit -r . -x ./.venv,./tests,./migrations`

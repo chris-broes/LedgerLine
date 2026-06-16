@@ -2,7 +2,9 @@
 # Deploy LedgerLine to a GKE cluster.
 #
 # Prerequisites:
-#   gcloud auth login && gcloud auth configure-docker REGION-docker.pkg.dev
+#   gcloud auth login
+#   gcloud auth print-access-token | \
+#     podman login -u oauth2accesstoken --password-stdin REGION-docker.pkg.dev
 #   gcloud container clusters get-credentials CLUSTER_NAME --region REGION --project PROJECT_ID
 #
 # Usage:
@@ -21,13 +23,13 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 echo "=== Building and pushing images ==="
 
-docker build -t "${REGISTRY}/ledger:${IMAGE_TAG}" "${REPO_ROOT}"
-docker build -t "${REGISTRY}/reminders:${IMAGE_TAG}" "${REPO_ROOT}/reminders"
-docker build -t "${REGISTRY}/recommendations:${IMAGE_TAG}" "${REPO_ROOT}/recommendations"
+podman build -t "${REGISTRY}/ledger:${IMAGE_TAG}" "${REPO_ROOT}"
+podman build -t "${REGISTRY}/reminders:${IMAGE_TAG}" "${REPO_ROOT}/reminders"
+podman build -t "${REGISTRY}/recommendations:${IMAGE_TAG}" "${REPO_ROOT}/recommendations"
 
-docker push "${REGISTRY}/ledger:${IMAGE_TAG}"
-docker push "${REGISTRY}/reminders:${IMAGE_TAG}"
-docker push "${REGISTRY}/recommendations:${IMAGE_TAG}"
+podman push "${REGISTRY}/ledger:${IMAGE_TAG}"
+podman push "${REGISTRY}/reminders:${IMAGE_TAG}"
+podman push "${REGISTRY}/recommendations:${IMAGE_TAG}"
 
 echo "=== Substituting image tags in manifests ==="
 

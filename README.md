@@ -26,10 +26,10 @@ python reminders/app.py               # reminders on :8001
 python recommendations/app.py         # recommendations on :8002
 ```
 
-Or with containers:
+Or with containers (Podman):
 
 ```bash
-SECRET_KEY=dev docker compose up --build   # ledger :8000, reminders :8001, recommendations :8002
+SECRET_KEY=dev podman compose up --build   # ledger :8000, reminders :8001, recommendations :8002
 ```
 
 ## Testing
