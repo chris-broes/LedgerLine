@@ -113,6 +113,7 @@ def index():
         spend_total=spend_total,
         recommendations=_fetch_recommendations(profile),
         chart=_balance_chart(transactions),
+        sankey=_sankey_chart(categories, spend_total),
         monthly_income=cashflow['income'],
         monthly_expenses=cashflow['expenses'],
         category_colors=CATEGORY_COLORS,
@@ -129,6 +130,51 @@ def _spending_profile(transactions: list['Transaction']) -> dict:
         'category_totals': category_totals,
         'subscription_count': sum(1 for txn in transactions if txn.category == 'Subscriptions'),
     }
+
+
+def _sankey_chart(categories: list[tuple], spend_total: float) -> Optional[dict]:
+    if not categories or spend_total <= 0:
+        return None
+
+    W, H = 480, 240
+    node_w = 16
+    gap = 10
+    n = len(categories)
+    right_h = H - (n - 1) * gap
+    cx = W / 2
+
+    flows: list[dict] = []
+    left_y = 0.0
+    right_y = 0.0
+
+    for name, amount in categories:
+        prop = amount / spend_total
+        lh = prop * H
+        rh = prop * right_h
+
+        path = (
+            f"M {node_w} {left_y:.1f} "
+            f"C {cx} {left_y:.1f} {cx} {right_y:.1f} {W - node_w} {right_y:.1f} "
+            f"L {W - node_w} {right_y + rh:.1f} "
+            f"C {cx} {right_y + rh:.1f} {cx} {left_y + lh:.1f} {node_w} {left_y + lh:.1f} Z"
+        )
+
+        flows.append({
+            'name': name,
+            'amount': amount,
+            'pct': round(prop * 100),
+            'path': path,
+            'left_y': left_y,
+            'left_h': lh,
+            'right_y': right_y,
+            'right_h': rh,
+            'label_y': right_y + rh / 2,
+        })
+
+        left_y += lh
+        right_y += rh + gap
+
+    return {'flows': flows, 'width': W, 'height': H, 'node_w': node_w}
 
 
 def _monthly_cashflow(transactions: list['Transaction']) -> dict:

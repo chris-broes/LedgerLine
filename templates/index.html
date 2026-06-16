@@ -360,6 +360,37 @@
         {% endif %}
     </div>
 
+    <!-- Sankey: spending segmentation -->
+    {% if sankey %}
+    <div class="card chart-card">
+        <div class="card-title">Spending Segmentation</div>
+        <svg viewBox="0 0 {{ sankey.width + 120 }} {{ sankey.height }}" style="width:100%;height:auto;display:block;" role="img" aria-label="Spending by category">
+            {% for f in sankey.flows %}
+            {% set color = category_colors.get(f.name, '#6b7280') %}
+            <!-- flow band -->
+            <path d="{{ f.path }}" fill="{{ color }}" opacity="0.72"/>
+            <!-- left node segment -->
+            <rect x="0" y="{{ f.left_y|round(1) }}" width="{{ sankey.node_w }}"
+                  height="{{ f.left_h|round(1) }}" fill="{{ color }}" rx="2"/>
+            <!-- right node segment -->
+            <rect x="{{ sankey.width - sankey.node_w }}" y="{{ f.right_y|round(1) }}"
+                  width="{{ sankey.node_w }}" height="{{ f.right_h|round(1) }}"
+                  fill="{{ color }}" rx="2"/>
+            <!-- right label -->
+            <text x="{{ sankey.width + 6 }}" y="{{ f.label_y|round(1) }}"
+                  dominant-baseline="middle" font-size="11" fill="#6b7280" font-family="system-ui,sans-serif">
+                {{ f.name }} {{ f.pct }}%
+            </text>
+            {% endfor %}
+            <!-- left label -->
+            <text x="{{ sankey.node_w + 6 }}" y="{{ sankey.height / 2 }}"
+                  dominant-baseline="middle" font-size="11" fill="#6b7280" font-family="system-ui,sans-serif">
+                Total Spending
+            </text>
+        </svg>
+    </div>
+    {% endif %}
+
     <!-- Two-column content -->
     <div class="content-grid">
 

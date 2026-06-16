@@ -20,4 +20,4 @@ USER appuser
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "flask db upgrade && gunicorn app:app --bind 0.0.0.0:${PORT:-8000} --workers 2"]
+CMD ["sh", "-c", "flask db upgrade && python seed.py --if-empty && gunicorn app:app --bind 0.0.0.0:${PORT:-8000} --workers 2"]

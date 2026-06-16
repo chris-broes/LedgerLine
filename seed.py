@@ -37,9 +37,12 @@ SEED_TRANSACTIONS = [
 ]
 
 
-def seed() -> None:
+def seed(only_if_empty: bool = False) -> None:
     today = datetime.now().date()
     with app.app_context():
+        if only_if_empty and Transaction.query.count() > 0:
+            print("DB already has data, skipping seed.")
+            return
         Transaction.query.delete()
         for description, days_ago, hour, amount, category in SEED_TRANSACTIONS:
             db.session.add(Transaction(
@@ -56,4 +59,6 @@ def seed() -> None:
 
 
 if __name__ == '__main__':
-    seed()
+    import sys
+    only_if_empty = '--if-empty' in sys.argv
+    seed(only_if_empty=only_if_empty)
