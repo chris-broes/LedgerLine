@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   qa:
-    runs-on: [self-hosted, toaster1]
+    runs-on: self-hosted
     timeout-minutes: 25
 
     steps:
