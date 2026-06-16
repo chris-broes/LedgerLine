@@ -14,4 +14,3 @@ README.md
 AGENTS.md
 docker-compose.yml
 k8s/
-seed.py
