@@ -28,5 +28,4 @@ instance/
 .venv/
 .DS_Store
 demo/
-!demo/DECK.md
 .factory/droids/
