@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
   <rect width="32" height="32" rx="5" fill="#1c1f2e"/>
   <line x1="2" y1="19" x2="30" y2="19" stroke="#6ee7b7" stroke-width="1.5"/>
-  <text x="3" y="25" font-family="system-ui,-apple-system,sans-serif"
-        font-weight="800" font-size="17" fill="white" letter-spacing="-0.5">L£</text>
+  <text x="4" y="25" font-family="system-ui,-apple-system,sans-serif"
+        font-weight="800" font-size="17" fill="white" letter-spacing="-1">LL</text>
 </svg>
