@@ -42,6 +42,7 @@ SEED_TRANSACTIONS = [
     ('Bar Agricole',              16,  21,   -58.00, 'Food',          'Drinks'),
 
     # ── Transport ─────────────────────────────────────────────────────────
+    ('Uber Eats — Thai Kitchen',   3,  19,   -34.50, 'Transport',      None),
     ('Auto loan payment',          1,   8,  -350.00, 'Transport',     'Auto Loan'),
     ('Auto insurance',             5,   9,  -125.00, 'Transport',     'Insurance'),
     ('Firestone — brake repair',  12,  10,  -185.00, 'Transport',     'Repairs'),
